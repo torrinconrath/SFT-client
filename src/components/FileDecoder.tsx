@@ -14,62 +14,100 @@ interface FileDecoderProps {
 
 const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
   const [decoded, setDecoded] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const processFile = async () => {
       if (decoded || message.type !== "file") return;
 
       const file = message.content as File;
-      const url = URL.createObjectURL(file);
-      let fullText = "";
-
-      const worker = await createWorker("eng"); // already loads language
+      setLoading(true);
 
       try {
-        let imageUrl: string;
+        let extractedText = "";
 
         if (file.type === "application/pdf") {
+          // Process PDF
+          const url = URL.createObjectURL(file);
           const pdf = await pdfjsLib.getDocument(url).promise;
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 2 });
+          let fullText = "";
 
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d")!;
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+          // Process first 3 pages to avoid performance issues
+          const pageLimit = Math.min(pdf.numPages, 3);
+          for (let i = 1; i <= pageLimit; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 });
 
-          // ✅ Keep canvas in render params to avoid errors
-          await page.render({ canvasContext: context, viewport, canvas }).promise;
-          imageUrl = canvas.toDataURL();
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d")!;
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            // ✅ Fixed: Include canvas in render parameters
+            await page.render({
+              canvasContext: context,
+              viewport: viewport,
+              canvas: canvas, // Add this required property
+            }).promise;
+
+            const worker = await createWorker("eng");
+            await worker.setParameters({
+              tessedit_pageseg_mode: PSM.AUTO,
+            });
+
+            const { data } = await worker.recognize(canvas);
+            fullText += data.text + "\n\n";
+            await worker.terminate();
+          }
+
+          extractedText = fullText.replace(/\s+/g, " ").trim();
+          URL.revokeObjectURL(url);
+        } else if (file.type.startsWith("image/")) {
+          // Process image
+          const url = URL.createObjectURL(file);
+          const worker = await createWorker("eng");
+          
+          await worker.setParameters({
+            tessedit_pageseg_mode: PSM.AUTO,
+          });
+
+          const { data } = await worker.recognize(url);
+          extractedText = data.text.replace(/\s+/g, " ").trim();
+          
+          await worker.terminate();
+          URL.revokeObjectURL(url);
         } else {
-          imageUrl = url;
+          extractedText = "Unsupported file type";
         }
 
-        await worker.setParameters({
-          tessedit_pageseg_mode: PSM.AUTO, // more forgiving for multi-line
-        });
+        if (!extractedText) {
+          extractedText = "No text could be recognized in this file.";
+        }
 
-        const { data } = await worker.recognize(imageUrl);
-        fullText = data.text.replace(/\s+/g, " ").trim();
-
-        if (!fullText) fullText = "No text could be recognized.";
-
-        setDecoded(fullText);
-        onDecoded(fullText);
+        setDecoded(extractedText);
+        onDecoded(extractedText);
       } catch (err) {
-        console.error("File OCR failed:", err);
-        const errorText = "Error decoding file.";
+        console.error("File processing failed:", err);
+        const errorText = "Error processing file. Please try another file.";
         setDecoded(errorText);
         onDecoded(errorText);
       } finally {
-        await worker.terminate();
+        setLoading(false);
       }
     };
 
     processFile();
-  }, [message]);
+  }, [message, decoded, onDecoded]);
 
-  return decoded ? <div className="decoded-message">{decoded}</div> : null;
+  if (loading) {
+    return <div className="decoded-message">🔄 Processing file...</div>;
+  }
+
+  return decoded ? (
+    <div className="decoded-message">
+      <strong>Extracted text:</strong> {decoded}
+    </div>
+  ) : null;
 };
 
 export default FileDecoder;
