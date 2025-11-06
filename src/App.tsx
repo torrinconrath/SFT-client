@@ -194,7 +194,7 @@ function App() {
                   <li>Upload files (images/PDFs) for text extraction</li>
                   <li>Use voice input with the microphone</li>
                 </ul>
-                <p>Bot responses will include text-to-speech options.</p>
+                <p>Bot responses will include text-to-speech.</p>
                 {devMode && (
                   <div className="dev-mode-notice">
                     🧪 Development metrics are enabled
@@ -291,6 +291,6 @@ export default App;
 
 // Here are two normal medical questions you could ask a bot:
 
-// "What are the common symptoms of seasonal allergies and what over-the-counter treatments are usually recommended?"
+// What are the common symptoms of seasonal allergies and what over-the-counter treatments are usually recommended?
 
-// "When should someone seek medical attention for a persistent headache?"
+// When should someone seek medical attention for a persistent headache?
