@@ -117,7 +117,7 @@ function App() {
     }
 
     try {
-      const res = await fetch("https://6cfff0a955ad.ngrok-free.app/chat", {
+      const res = await fetch("https://unexperienced-unsapientially-janelle.ngrok-free.dev/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: content }),
