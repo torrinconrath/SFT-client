@@ -31,7 +31,7 @@ html, body, #root {
   margin: 0;
 }
 
-.dev-toggle-button {
+.toggle-button {
   padding: 10px 16px;
   background-color: #444;
   color: #fff;
@@ -41,11 +41,11 @@ html, body, #root {
   font-weight: 500;
 }
 
-.dev-toggle-button:hover {
+.toggle-button:hover {
   background-color: #555;
 }
 
-.dev-toggle-button.dev-active {
+.toggle-button.dev-active {
   background-color: #00bfff;
   color: #000;
   font-weight: bold;

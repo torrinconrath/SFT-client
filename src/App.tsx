@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import FileDecoder from "./components/FileDecoder";
 import VoiceOutput from "./components/VoiceOutput";
-import DevMetrics, { type MetricsData } from "./dev/DevMetrics";
+import DevMetrics, { type MetricsData } from "./components/DevMetrics";
 import type { ChatMessage } from "./types/chat";
 import { createVoiceDecoder, type VoiceRecognitionHandlers } from "./components/VoiceDecoder";
+import { useChatStorage } from "./hooks/useChatStorage";
 import "./App.css";
 
 function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { messages, setMessages, clearMessages } = useChatStorage();
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
   const [devMode, setDevMode] = useState(false);
@@ -174,7 +175,15 @@ function App() {
         <div className="header-content">
           <h1>Chatbot</h1>
           <button 
-            className={`dev-toggle-button ${devMode ? 'dev-active' : ''}`}
+            className="toggle-button"
+            onClick={clearMessages}
+            title="Clear chat history"
+          >
+            🗑️ Clear Chat
+          </button>
+
+          <button 
+            className={`toggle-button ${devMode ? 'dev-active' : ''}`}
             onClick={toggleDevMode}
             title="Toggle development metrics"
           >
