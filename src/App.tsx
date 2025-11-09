@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import FileDecoder from "./components/FileDecoder";
 import VoiceOutput from "./components/VoiceOutput";
-import DevMetrics, { type MetricsData } from "./components/DevMetrics";
+import DevMetrics from "./components/DevMetrics";
 import type { ChatMessage } from "./types/chat";
 import { createVoiceDecoder, type VoiceRecognitionHandlers } from "./components/VoiceDecoder";
 import { useChatStorage } from "./hooks/useChatStorage";
+import { useDevMetrics } from "./hooks/useDevMetrics";
+import ReactMarkdown from "react-markdown";
 import "./App.css";
 
 function App() {
@@ -14,12 +16,11 @@ function App() {
   const [devMode, setDevMode] = useState(false);
   const voiceRef = useRef<VoiceRecognitionHandlers | null>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);
-  
-  // State to hold the metrics functions
-  const [metricsFunctions, setMetricsFunctions] = useState<{
-    startRequestMonitoring: () => void;
-    completeRequestMonitoring: (responseText: string, modelInfo?: string) => void;
-  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+
+  // Simplified DevMetrics hook (no callbacks)
+  const { metrics, startMonitoring, completeMonitoring, clearMetrics } = useDevMetrics(devMode);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -28,9 +29,7 @@ function App() {
     }
   }, [messages]);
 
-  const toggleDevMode = () => {
-    setDevMode(prev => !prev);
-  };
+  const toggleDevMode = () => setDevMode((prev) => !prev);
 
   const handleSendText = async () => {
     if (!input.trim()) return;
@@ -42,15 +41,15 @@ function App() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const fileUrl = URL.createObjectURL(file);
-      
+
       setMessages((prev) => [
-        ...prev, 
-        { 
-          type: "file", 
-          content: file, 
+        ...prev,
+        {
+          type: "file",
+          content: file,
           previewUrl: fileUrl,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       ]);
     }
   };
@@ -66,7 +65,10 @@ function App() {
               lastMessage.content = transcript;
               return newMessages;
             }
-            return [...prev, { type: "audio", content: transcript, timestamp: new Date().toISOString() }];
+            return [
+              ...prev,
+              { type: "audio", content: transcript, timestamp: new Date().toISOString() },
+            ];
           });
         },
         () => {
@@ -86,7 +88,7 @@ function App() {
       voiceRef.current.stop();
       setListening(false);
     } else {
-      setMessages(prev => prev.filter(msg => msg.type !== "audio"));
+      setMessages((prev) => prev.filter((msg) => msg.type !== "audio"));
       voiceRef.current.start();
       setListening(true);
     }
@@ -94,87 +96,86 @@ function App() {
 
   const handleDecoded = async (text: string) => {
     if (text && text !== "No text could be recognized." && !text.includes("Error decoding")) {
+      setLoading(true);
       await sendMessage(text, "file");
     }
   };
 
-  const sendMessage = async (content: string, inputType: "text" | "audio" | "file" = "text") => {
+  // Main send message logic (text, file, or audio)
+  const sendMessage = async (
+    content: string,
+    inputType: "text" | "audio" | "file" = "text"
+  ) => {
     if (!content.trim()) return;
 
     // Remove any interim audio messages
-    setMessages(prev => prev.filter(msg => !(msg.type === "audio" && msg.content === content)));
+    setMessages((prev) =>
+      prev.filter((msg) => !(msg.type === "audio" && msg.content === content))
+    );
 
-    const userMessage: ChatMessage = { 
-      type: inputType === "file" ? "file" : "text", 
+    const userMessage: ChatMessage = {
+      type: inputType === "file" ? "file" : "text",
       content: content,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
     setMessages((prev) => [...prev, userMessage]);
 
-    // Start monitoring for dev mode
-    if (devMode && metricsFunctions) {
-      metricsFunctions.startRequestMonitoring();
-    }
+    // Start metrics collection (only if devMode is active)
+    if (devMode) startMonitoring();
 
     try {
-      const res = await fetch("https://unexperienced-unsapientially-janelle.ngrok-free.dev/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: content }),
-      });
-      
+
+      setLoading(true)
+
+      const res = await fetch(
+        "https://unexperienced-unsapientially-janelle.ngrok-free.dev/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: content }),
+        }
+      );
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
 
       const data = await res.json();
-      const botMessage: ChatMessage = { 
-        type: "bot", 
+      const botMessage: ChatMessage = {
+        type: "bot",
         content: data.response,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
+
       setMessages((prev) => [...prev, botMessage]);
 
-      // Complete monitoring for dev mode
-      if (devMode && metricsFunctions) {
-        metricsFunctions.completeRequestMonitoring(data.response);
-      }
-
+      // Complete metrics with inference time (if available)
+      if (devMode) completeMonitoring(data.response, data.inference_time);
     } catch (err) {
       console.error("Error talking to backend:", err);
-      const errorMessage: ChatMessage = { 
-        type: "bot", 
-        content: "Sorry, I'm having trouble connecting right now. Please try again.",
-        timestamp: new Date().toISOString()
+      const errorMessage: ChatMessage = {
+        type: "bot",
+        content:
+          "Sorry, I'm having trouble connecting right now. Please try again.",
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-      
-      // Complete monitoring with error for dev mode
-      if (devMode && metricsFunctions) {
-        metricsFunctions.completeRequestMonitoring("Error response");
-      }
+
+      // Complete metrics with error
+      if (devMode) completeMonitoring("Error response", 0);
+
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleMetricsUpdate = (metrics: MetricsData) => {
-    console.log('Metrics updated:', metrics);
-    // You can send metrics to analytics, store in localStorage, etc.
-  };
-
-  const handleFunctionsReady = useCallback((functions: {
-    startRequestMonitoring: () => void;
-    completeRequestMonitoring: (responseText: string, modelInfo?: string) => void;
-  }) => {
-    setMetricsFunctions(functions);
-  }, []);
 
   return (
     <div className="app-container">
       <header className="app-header">
         <div className="header-content">
           <h1>Chatbot</h1>
-          <button 
+          <button
             className="toggle-button"
             onClick={clearMessages}
             title="Clear chat history"
@@ -182,12 +183,12 @@ function App() {
             🗑️ Clear Chat
           </button>
 
-          <button 
-            className={`toggle-button ${devMode ? 'dev-active' : ''}`}
+          <button
+            className={`toggle-button ${devMode ? "dev-active" : ""}`}
             onClick={toggleDevMode}
             title="Toggle development metrics"
           >
-            {devMode ? '🔬 Dev Mode ON' : '🔧 Dev Mode'}
+            {devMode ? "🔬 Dev Mode ON" : "🔧 Dev Mode"}
           </button>
         </div>
       </header>
@@ -211,12 +212,14 @@ function App() {
                 )}
               </div>
             )}
-            
+
             {messages.map((msg, index) => (
               <div
                 key={`${msg.timestamp}-${index}`}
                 className={`chat-message ${
-                  msg.type === "text" || msg.type === "file" || msg.type === "audio"
+                  msg.type === "text" ||
+                  msg.type === "file" ||
+                  msg.type === "audio"
                     ? "user-message"
                     : msg.type === "bot"
                     ? "bot-message"
@@ -227,8 +230,29 @@ function App() {
                   {msg.type === "text" && <span>{msg.content as string}</span>}
                   {msg.type === "bot" && (
                     <div className="bot-message-container">
-                      <span>{msg.content as string}</span>
-                      <VoiceOutput text={msg.content as string} />
+                      <ReactMarkdown
+                        components={{
+                          strong: ({ node, ...props }) => <strong style={{ fontWeight: "bold" }} {...props} />,
+                          li: ({ node, ...props }) => <li style={{ marginLeft: "1.2em" }} {...props} />,
+                          ul: ({ node, ...props }) => <ul style={{ paddingLeft: "1.5em", marginTop: "0.5em" }} {...props} />,
+                          p: ({ node, ...props }) => <p style={{ marginBottom: "0.5em" }} {...props} />,
+                        }}
+                      >
+                        {msg.content as string}
+                      </ReactMarkdown>
+
+                      {msg.content && typeof msg.content === "string" && msg.content.trim() && (
+                         <div className="voice-output-buttons">
+                            <VoiceOutput text={msg.content as string} />
+                            <button
+                              className="copy-button"
+                              onClick={() => navigator.clipboard.writeText(msg.content as string)}
+                            >
+                              📋 Copy
+                            </button>
+                      </div>
+                      )}
+
                     </div>
                   )}
                   {msg.type === "file" && (
@@ -244,34 +268,51 @@ function App() {
                   {msg.type === "audio" && (
                     <div className="audio-message">
                       <span>🎤 {msg.content as string}</span>
-                      {listening && <div className="recording-indicator">● Recording...</div>}
+                      {listening && (
+                        <div className="recording-indicator">● Recording...</div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             ))}
+
+            {/* Loading animation always at the bottom if loading */}
+            {loading && (
+              <div className="chat-message bot-message loading-message">
+                <div className="loading-dots">
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </div>
+                <p>Bot is typing...</p>
+              </div>
+            )}
           </div>
 
           <div className="input-area">
             <input
+              name="chat-input"
               type="text"
               className="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendText()}
               placeholder="Type your message or use voice/file input..."
+              disabled={loading} 
             />
-            <button className="send-button" onClick={handleSendText}>
+            <button className="send-button" onClick={handleSendText} disabled={loading}>
               📤 Send
             </button>
 
             <label className="file-upload-button send-button">
               📎 Upload
-              <input 
-                type="file" 
-                onChange={handleFileUpload} 
-                accept=".pdf,.png,.jpg,.jpeg,.gif" 
-                hidden 
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                accept=".pdf,.png,.jpg,.jpeg,.gif"
+                hidden
+                disabled={loading}
               />
             </label>
 
@@ -279,16 +320,18 @@ function App() {
               className="voice-button send-button"
               onClick={handleVoiceToggle}
               style={{ backgroundColor: listening ? "#ff4d4d" : "#00bfff" }}
+              disabled={loading}
             >
               {listening ? "⏹️ Stop" : "🎤 Voice"}
             </button>
           </div>
         </div>
 
-        <DevMetrics 
+        {/* Dev metrics panel */}
+        <DevMetrics
           isEnabled={devMode}
-          onMetricsUpdate={handleMetricsUpdate}
-          onFunctionsReady={handleFunctionsReady}
+          metrics={metrics}
+          clearMetrics={clearMetrics}
         />
       </div>
     </div>
@@ -296,7 +339,6 @@ function App() {
 }
 
 export default App;
-
 
 // Here are two normal medical questions you could ask a bot:
 

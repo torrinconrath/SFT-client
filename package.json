@@ -13,6 +13,7 @@
     "pdfjs-dist": "^5.4.149",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
