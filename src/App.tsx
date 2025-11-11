@@ -29,31 +29,59 @@ function App() {
     }
   }, [messages]);
 
+  // Dev mode function
   const toggleDevMode = () => setDevMode((prev) => !prev);
 
+  // Standard send text
   const handleSendText = async () => {
     if (!input.trim()) return;
-    await sendMessage(input, "text");
+
+    const userMessage: ChatMessage = {
+      type: "text",
+      content: input,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    await sendMessage(input);
     setInput("");
   };
 
+  // File Upload send
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (file) {
       const fileUrl = URL.createObjectURL(file);
+      const fileMessage: ChatMessage = {
+        type: "file",
+        content: file,
+        previewUrl: fileUrl,
+        timestamp: new Date().toISOString(),
+        isProcessed: false, // Initialize the file as not processed
+      };
+      setMessages((prev) => [...prev, fileMessage]);
+    }
+    
+    // Reset the input value
+    e.target.value = '';
+  };
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "file",
-          content: file,
-          previewUrl: fileUrl,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+  // Fetches the handles the file after decoding
+  const handleFileDecoded = async (timestamp: string, decodedText: string) => {
+    
+    // Set the message to processed 
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
+        msg.timestamp === timestamp ? { ...msg, isProcessed: true } : msg
+      )
+    );
+ 
+    if (decodedText && decodedText !== "No text could be recognized." && !decodedText.includes("Error decoding")) {
+      await sendMessage(decodedText);
     }
   };
 
+  // Voice Upload send
   const handleVoiceToggle = () => {
     if (!voiceRef.current) {
       voiceRef.current = createVoiceDecoder(
@@ -76,7 +104,12 @@ function App() {
           if (voiceRef.current) {
             const finalText = voiceRef.current.getDecodedText();
             if (finalText.trim()) {
-              sendMessage(finalText, "audio");
+
+              setMessages((prev) =>
+                prev.filter((msg) => !(msg.type === "audio" && msg.content === finalText))
+              );
+              sendMessage(finalText);         
+              
             }
           }
         }
@@ -94,32 +127,9 @@ function App() {
     }
   };
 
-  const handleDecoded = async (text: string) => {
-    if (text && text !== "No text could be recognized." && !text.includes("Error decoding")) {
-      setLoading(true);
-      await sendMessage(text, "file");
-    }
-  };
-
   // Main send message logic (text, file, or audio)
-  const sendMessage = async (
-    content: string,
-    inputType: "text" | "audio" | "file" = "text"
-  ) => {
+  const sendMessage = async ( content: string ) => {
     if (!content.trim()) return;
-
-    // Remove any interim audio messages
-    setMessages((prev) =>
-      prev.filter((msg) => !(msg.type === "audio" && msg.content === content))
-    );
-
-    const userMessage: ChatMessage = {
-      type: inputType === "file" ? "file" : "text",
-      content: content,
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
 
     // Start metrics collection (only if devMode is active)
     if (devMode) startMonitoring();
@@ -262,7 +272,7 @@ function App() {
                         alt="uploaded file"
                         className="chat-image"
                       />
-                      <FileDecoder message={msg} onDecoded={handleDecoded} />
+                      <FileDecoder message={msg} onDecoded={handleFileDecoded} />
                     </div>
                   )}
                   {msg.type === "audio" && (

@@ -9,7 +9,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface FileDecoderProps {
   message: ChatMessage;
-  onDecoded: (text: string) => void;
+  onDecoded: (timestamp: string, text: string) => void;
 }
 
 const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
@@ -18,10 +18,10 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
 
   useEffect(() => {
     const processFile = async () => {
-      if (decoded || message.type !== "file") return;
+      if (message.isProcessed || message.type !== "file") return;
 
-      const file = message.content as File;
       setLoading(true);
+      const file = message.content as File;
 
       try {
         let extractedText = "";
@@ -32,9 +32,15 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
           const pdf = await pdfjsLib.getDocument(url).promise;
           let fullText = "";
 
-          // Process first 3 pages to avoid performance issues
-          const pageLimit = Math.min(pdf.numPages, 3);
+          const worker = await createWorker("eng");
+          await worker.setParameters({
+            tessedit_pageseg_mode: PSM.AUTO,
+          });
+
+          // Process only first 5 pages 
+          const pageLimit = Math.min(pdf.numPages, 5);
           for (let i = 1; i <= pageLimit; i++) {
+
             const page = await pdf.getPage(i);
             const viewport = page.getViewport({ scale: 1.5 });
 
@@ -43,33 +49,30 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
             canvas.width = viewport.width;
             canvas.height = viewport.height;
 
-            // ✅ Fixed: Include canvas in render parameters
+            // Render parameters
             await page.render({
               canvasContext: context,
               viewport: viewport,
-              canvas: canvas, // Add this required property
+              canvas: canvas, 
             }).promise;
-
-            const worker = await createWorker("eng");
-            await worker.setParameters({
-              tessedit_pageseg_mode: PSM.AUTO,
-            });
 
             const { data } = await worker.recognize(canvas);
             fullText += data.text + "\n\n";
-            await worker.terminate();
           }
 
-          extractedText = fullText.replace(/\s+/g, " ").trim();
+          await worker.terminate();
           URL.revokeObjectURL(url);
+          extractedText = fullText.replace(/\s+/g, " ").trim();
+
         } else if (file.type.startsWith("image/")) {
-          // Process image
-          const url = URL.createObjectURL(file);
+
           const worker = await createWorker("eng");
-          
           await worker.setParameters({
             tessedit_pageseg_mode: PSM.AUTO,
           });
+
+          // Process image
+          const url = URL.createObjectURL(file);
 
           const { data } = await worker.recognize(url);
           extractedText = data.text.replace(/\s+/g, " ").trim();
@@ -85,19 +88,24 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
         }
 
         setDecoded(extractedText);
-        onDecoded(extractedText);
+        if (!message.isProcessed && message.timestamp) {
+          onDecoded(message.timestamp, extractedText);
+        }
       } catch (err) {
         console.error("File processing failed:", err);
         const errorText = "Error processing file. Please try another file.";
         setDecoded(errorText);
-        onDecoded(errorText);
+
+        if (!message.isProcessed && message.timestamp) {
+          onDecoded(message.timestamp, errorText);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     processFile();
-  }, [message, decoded, onDecoded]);
+  }, [message.timestamp, message.isProcessed, onDecoded]);
 
   if (loading) {
     return <div className="decoded-message">🔄 Processing file...</div>;

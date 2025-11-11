@@ -3,4 +3,5 @@ export interface ChatMessage {
   content: string | File;
   previewUrl?: string;
   timestamp?: string;
+  isProcessed?: boolean;
 }
