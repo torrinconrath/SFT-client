@@ -9,6 +9,8 @@ import { useDevMetrics } from "./hooks/useDevMetrics";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
+const API_BASE_URL = "http://localhost:9000";
+
 function App() {
   const { messages, setMessages, clearMessages } = useChatStorage();
   const [input, setInput] = useState("");
@@ -138,14 +140,11 @@ function App() {
 
       setLoading(true)
 
-      const res = await fetch(
-        "https://unexperienced-unsapientially-janelle.ngrok-free.dev/chat",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: content }),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content }),
+      });
 
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);

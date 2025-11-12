@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Python lib
+.venv
+server/vllm.log
+__pycache__
+SFT_merged_model
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
