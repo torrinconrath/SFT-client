@@ -77,7 +77,8 @@ function App() {
     );
  
     if (decodedText && decodedText !== "No text could be recognized." && !decodedText.includes("Error decoding")) {
-      await sendMessage(decodedText);
+      const filePrompt = "Observe the contents of the text: " + decodedText;
+      await sendMessage(filePrompt);
     }
   };
 
@@ -85,10 +86,13 @@ function App() {
   const handleVoiceToggle = () => {
     if (!voiceRef.current) {
       voiceRef.current = createVoiceDecoder(
+
+        // Handles live transcript
         (transcript) => {
           setMessages((prev) => {
             const newMessages = [...prev];
             const lastMessage = newMessages[newMessages.length - 1];
+
             if (lastMessage?.type === "audio") {
               lastMessage.content = transcript;
               return newMessages;
@@ -99,14 +103,20 @@ function App() {
             ];
           });
         },
+
+        // Handles the recording stop
         () => {
+          console.log("decoder onStop callback fired");
           setListening(false);
           if (voiceRef.current) {
             const finalText = voiceRef.current.getDecodedText();
+
             if (finalText.trim()) {
 
               setMessages((prev) =>
-                prev.filter((msg) => !(msg.type === "audio" && msg.content === finalText))
+                prev.map((msg) => 
+                  msg.type === "audio" ? { ...msg, content: finalText} : msg
+                )
               );
               sendMessage(finalText);         
               
@@ -157,6 +167,19 @@ function App() {
         content: data.response,
         timestamp: new Date().toISOString(),
       };
+
+      // In case the model hits a stop criteria and cannot give a good response
+      if (data.response.length < 4) {
+        const errorMessage: ChatMessage = {
+          type: "bot",
+          content:
+            "Sorry, the provide text is unable to be processed. Please rephrase it and try again.",
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        return;
+      }
+
 
       setMessages((prev) => [...prev, botMessage]);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createWorker, PSM } from "tesseract.js";
 import * as pdfjsLib from "pdfjs-dist";
 import type { ChatMessage } from "../types/chat";
@@ -15,10 +15,12 @@ interface FileDecoderProps {
 const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
   const [decoded, setDecoded] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const hasDecodedRef = useRef(false); 
 
   useEffect(() => {
     const processFile = async () => {
-      if (message.isProcessed || message.type !== "file") return;
+      if (hasDecodedRef.current ||message.isProcessed || message.type !== "file") return;
+      hasDecodedRef.current = true; 
 
       setLoading(true);
       const file = message.content as File;
@@ -105,7 +107,7 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
     };
 
     processFile();
-  }, [message.timestamp, message.isProcessed, onDecoded]);
+  }, [message.timestamp, message.isProcessed]);
 
   if (loading) {
     return <div className="decoded-message">🔄 Processing file...</div>;
