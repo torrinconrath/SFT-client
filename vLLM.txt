@@ -1,0 +1,58 @@
+Current Model Setup:
+
+llm = LLM(
+    model=model_path,
+    gpu_memory_utilization=0.75,
+    trust_remote_code=True,
+    max_model_len=4096,
+    dtype="float16",
+    enable_chunked_prefill=False,
+    max_num_batched_tokens=768,
+    quantization="bitsandbytes",
+)
+
+# Default sampling parameters
+sampling_params = SamplingParams(
+    temperature=0.7,
+    max_tokens=512,
+    top_p=0.9,
+    skip_special_tokens=True,
+    stop=["User", "Okay"],
+)
+
+
+Current Prompt Helper:
+
+def format_prompt(user_message):
+    return f"""You are a medical assistant. Provide clear answers about health topics without including internal reasoning or commentary. 
+               Always explain key medical terms in plain English. Be as concise as possible while still making the information understandable.
+
+User: {user_message}
+Assistant:"""
+
+
+Current Endpoint:
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    print(f"Received: {request.message}")
+    try:
+        formatted_prompt = format_prompt(request.message)
+
+        start_time = time.time()
+        outputs = llm.generate([formatted_prompt], sampling_params)
+        inference_time = (time.time() - start_time) * 1000 # ms
+
+        raw_response = outputs[0].outputs[0].text.strip()
+
+        # Remove "response" and "assistant" from the beginning
+        response_temp = re.sub(r'^response:?\s*', '', raw_response, flags=re.IGNORECASE)
+        response_text = re.sub(r'^assistant:?\s*', '', response_temp, flags=re.IGNORECASE)
+
+
+        print(f"Responding ({inference_time:.2f} ms): {response_text}")
+        return {"response": response_text, "inference_time": inference_time}
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return {"response": f"Error: {str(e)}"}
