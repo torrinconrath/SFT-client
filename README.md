@@ -82,9 +82,10 @@ Follow these steps to add a minimal server-side folder that proxies requests to 
    cd server
    # skip venv & install if set up before
    # (optional if you always use uv run) source .venv/bin/activate
+   # if uv does not exist in your device, run curl -LsSf https://astral.sh/uv/install.sh | sh
    uv venv
    uv pip install -r requirements.txt
-
+   # SFT_merged_model/ is the fine-tuned model path
    uv run bash start_vllm.sh SFT_merged_model/
    uv run uvicorn main:app --host 0.0.0.0 --port 9000
    ```

@@ -9,7 +9,7 @@ import { useDevMetrics } from "./hooks/useDevMetrics";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-const API_BASE_URL = "http://localhost:9000";
+const API_BASE_URL = "https://declined-perfect-sewing-experimental.trycloudflare.com ";
 
 function App() {
   const { messages, setMessages, clearMessages } = useChatStorage();

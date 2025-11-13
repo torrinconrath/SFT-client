@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-CORS_ALLOW_ORIGINS_DEFAULT = ["http://localhost:5173"]
+CORS_ALLOW_ORIGINS_DEFAULT = ["http://localhost:5173", ]
 VLLM_URL = os.getenv("VLLM_URL", "http://127.0.0.1:8001/v1/chat/completions")
 MODEL_NAME = os.getenv("VLLM_MODEL", "Qwen3")
 VLLM_API_KEY = os.getenv("VLLM_API_KEY", "token-local")
@@ -28,7 +28,7 @@ CORS_ALLOW_ORIGINS = [
 app = FastAPI(title="SFT Chatbot Backend")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
