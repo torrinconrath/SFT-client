@@ -3,5 +3,10 @@ export interface ChatMessage {
   content: string | File;
   previewUrl?: string;
   timestamp?: string;
+
+  fileName?: string; 
+  decodedText?: string;
   isProcessed?: boolean;
+
+  isRecording?: boolean;
 }

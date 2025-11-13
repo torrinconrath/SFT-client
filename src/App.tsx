@@ -27,6 +27,8 @@ function App() {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
+
+    console.log(messages);
   }, [messages]);
 
   // Dev mode function
@@ -57,6 +59,7 @@ function App() {
         content: file,
         previewUrl: fileUrl,
         timestamp: new Date().toISOString(),
+        fileName: file.name,
         isProcessed: false, // Initialize the file as not processed
       };
       setMessages((prev) => [...prev, fileMessage]);
@@ -72,7 +75,8 @@ function App() {
     // Set the message to processed 
     setMessages(prevMessages =>
       prevMessages.map(msg =>
-        msg.timestamp === timestamp ? { ...msg, isProcessed: true } : msg
+        msg.timestamp === timestamp 
+          ? { ...msg, decodedText: decodedText.trim(), isProcessed: true } : msg
       )
     );
  
@@ -91,22 +95,29 @@ function App() {
         (transcript) => {
           setMessages((prev) => {
             const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
 
-            if (lastMessage?.type === "audio") {
-              lastMessage.content = transcript;
+            const activeIndex = newMessages.findIndex(
+              (msg) => msg.type === "audio" && msg.isRecording === true
+            );
+            
+            if (activeIndex !== -1) {
+              // Update only the currently active recording message
+              newMessages[activeIndex] = {
+                ...newMessages[activeIndex],
+                content: transcript,
+              };
               return newMessages;
             }
+
             return [
               ...prev,
-              { type: "audio", content: transcript, timestamp: new Date().toISOString() },
+              { type: "audio", content: transcript, timestamp: new Date().toISOString(), isRecording: true},
             ];
           });
         },
 
         // Handles the recording stop
         () => {
-          console.log("decoder onStop callback fired");
           setListening(false);
           if (voiceRef.current) {
             const finalText = voiceRef.current.getDecodedText();
@@ -115,11 +126,23 @@ function App() {
 
               setMessages((prev) =>
                 prev.map((msg) => 
-                  msg.type === "audio" ? { ...msg, content: finalText} : msg
+                  msg.type === "audio" && msg.isRecording 
+                    ? { ...msg, content: finalText, isRecording: false} 
+                    : msg
                 )
               );
               sendMessage(finalText);         
-              
+
+            } else {
+
+              // Mark recording ended (no usable transcript)
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.type === "audio" && msg.isRecording
+                    ? { ...msg, isRecording: false }
+                    : msg
+                )
+              );
             }
           }
         }
@@ -131,7 +154,6 @@ function App() {
       voiceRef.current.stop();
       setListening(false);
     } else {
-      setMessages((prev) => prev.filter((msg) => msg.type !== "audio"));
       voiceRef.current.start();
       setListening(true);
     }
@@ -290,12 +312,31 @@ function App() {
                   )}
                   {msg.type === "file" && (
                     <div className="file-message">
-                      <img
-                        src={(msg as any).previewUrl}
-                        alt="uploaded file"
-                        className="chat-image"
-                      />
-                      <FileDecoder message={msg} onDecoded={handleFileDecoded} />
+                      {/* File preview section */}
+                      {msg.content instanceof File && msg.content.type.startsWith("image/") ? (
+                        <img
+                          src={msg.previewUrl}
+                          alt={msg.content.name}
+                          className="chat-image"
+                        />
+                      ) : (
+                        <div className="file-info">
+                          📄 <strong>{msg.content instanceof File ? msg.content.name : "Uploaded File"}</strong>
+                        </div>
+                      )}
+
+                      {/* If decoded text already exists*/}
+                      {msg.decodedText && (
+                        <div className="decoded-message">
+                          <strong>Extracted text:</strong> {msg.decodedText}
+                        </div>
+                      )}
+
+                      
+                      {!msg.decodedText && (
+                        <FileDecoder message={msg} onDecoded={handleFileDecoded} />
+                      )}
+
                     </div>
                   )}
                   {msg.type === "audio" && (
