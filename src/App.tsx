@@ -18,6 +18,8 @@ function App() {
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
 
+  const MAX_INPUT_CHARS = 10000;
+
 
   // Simplified DevMetrics hook (no callbacks)
   const { metrics, startMonitoring, completeMonitoring, clearMetrics } = useDevMetrics(devMode);
@@ -162,6 +164,17 @@ function App() {
   // Main send message logic (text, file, or audio)
   const sendMessage = async ( content: string ) => {
     if (!content.trim()) return;
+
+    // Message if the input exceeds the safe limit
+    if (content.length > MAX_INPUT_CHARS) {
+      const errorMessage: ChatMessage = {
+        type: "bot",
+        content: `Your message is too long. Please reduce it to under ${MAX_INPUT_CHARS} characters.`,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      return;
+    }
 
     // Start metrics collection (only if devMode is active)
     if (devMode) startMonitoring();
