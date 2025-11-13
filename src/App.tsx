@@ -28,7 +28,7 @@ function App() {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
 
-    console.log(messages);
+    // console.log(messages);
   }, [messages]);
 
   // Dev mode function
@@ -312,6 +312,7 @@ function App() {
                   )}
                   {msg.type === "file" && (
                     <div className="file-message">
+
                       {/* File preview section */}
                       {msg.content instanceof File && msg.content.type.startsWith("image/") ? (
                         <img
@@ -325,13 +326,12 @@ function App() {
                         </div>
                       )}
 
-                      {/* If decoded text already exists*/}
+                      {/* If decoded text already exists, just show it */}
                       {msg.decodedText && (
                         <div className="decoded-message">
                           <strong>Extracted text:</strong> {msg.decodedText}
                         </div>
                       )}
-
                       
                       {!msg.decodedText && (
                         <FileDecoder message={msg} onDecoded={handleFileDecoded} />
