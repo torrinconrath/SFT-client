@@ -1,5 +1,7 @@
 import React from "react";
 import type { MetricsData } from "../hooks/useDevMetrics";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash, faClock, faCog, faWifi, faDatabase } from '@fortawesome/free-solid-svg-icons';
 
 interface DevMetricsProps {
   isEnabled: boolean;
@@ -22,15 +24,15 @@ const DevMetrics: React.FC<DevMetricsProps> = ({ isEnabled, metrics, clearMetric
       <div className="metrics-header">
         <h3>Dev Metrics</h3>
         <button className="metrics-button clear-button" onClick={clearMetrics}>
-          🗑️ Clear
+          <FontAwesomeIcon icon={faTrash} /> Clear
         </button>
       </div>
 
       <div className="metrics-summary">
-        <div>🕓 Avg Total Time: {avgTotal} ms</div>
-        <div>⚙️ Avg Inference: {avgInference} ms</div>
-        <div>🌐 Avg Latency: {avgLatency} ms</div>
-        <div>📦 Total Samples: {metrics.length}</div>
+        <div><FontAwesomeIcon icon={faClock} /> Avg Total Time: {avgTotal} ms</div>
+        <div><FontAwesomeIcon icon={faCog} /> Avg Inference: {avgInference} ms</div>
+        <div><FontAwesomeIcon icon={faWifi} /> Avg Latency: {avgLatency} ms</div>
+        <div><FontAwesomeIcon icon={faDatabase} /> Total Samples: {metrics.length}</div>
       </div>
 
       <div className="metrics-details">
@@ -38,8 +40,9 @@ const DevMetrics: React.FC<DevMetricsProps> = ({ isEnabled, metrics, clearMetric
         <ul>
           {metrics.slice(0, 10).map((m, i) => (
             <li key={i}>
-              [{new Date(m.timestamp).toLocaleTimeString()}] 🕓 {m.totalTime.toFixed(0)}ms | ⚙️{" "}
-              {m.inferenceTime.toFixed(0)}ms | 🌐 {m.latency.toFixed(0)}ms
+              [{new Date(m.timestamp).toLocaleTimeString()}] <FontAwesomeIcon icon={faClock} /> {m.totalTime.toFixed(0)}ms | 
+              <FontAwesomeIcon icon={faCog} />{" "} {m.inferenceTime.toFixed(0)}ms | 
+              <FontAwesomeIcon icon={faWifi} /> {m.latency.toFixed(0)}ms
             </li>
           ))}
         </ul>

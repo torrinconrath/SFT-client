@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faVolumeUp, faVolumeMute } from '@fortawesome/free-solid-svg-icons';
 
 interface VoiceOutputProps {
   text: string;
@@ -83,7 +85,7 @@ const VoiceOutput: React.FC<VoiceOutputProps> = ({ text, autoPlay = false }) => 
           color: speaking ? "#000" : "#fff"
         }}
       >
-        {speaking ? "🔊 Stop" : "🔊 Speak"}
+        {speaking ? <FontAwesomeIcon icon={faVolumeMute} /> : <FontAwesomeIcon icon={faVolumeUp} />} {speaking ? "Stop" : "Speak"}
       </button>
     </div>
   );

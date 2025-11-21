@@ -7,6 +7,8 @@ import { createVoiceDecoder, type VoiceRecognitionHandlers } from "./components/
 import { useChatStorage } from "./hooks/useChatStorage";
 import { useDevMetrics } from "./hooks/useDevMetrics";
 import ReactMarkdown from "react-markdown";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTrash, faWrench, faCopy, faPaperPlane, faFile, faFileAlt, faMicrophone, faStop } from '@fortawesome/free-solid-svg-icons';
 import "./App.css";
 
 function App() {
@@ -19,6 +21,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const MAX_INPUT_CHARS = 10000;
+  const BASE_URL = import.meta.env.VITE_SFT_MODEL_ENDPOINT;
 
 
   // Simplified DevMetrics hook (no callbacks)
@@ -184,7 +187,7 @@ function App() {
       setLoading(true)
 
       const res = await fetch(
-        "https://unexperienced-unsapientially-janelle.ngrok-free.dev/chat",
+        `${BASE_URL}/chat`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -248,7 +251,7 @@ function App() {
             onClick={clearMessages}
             title="Clear chat history"
           >
-            🗑️ Clear Chat
+            <FontAwesomeIcon icon={faTrash} /> Clear Chat
           </button>
 
           <button
@@ -256,7 +259,7 @@ function App() {
             onClick={toggleDevMode}
             title="Toggle development metrics"
           >
-            {devMode ? "🔬 Dev Mode ON" : "🔧 Dev Mode"}
+            <FontAwesomeIcon icon={faWrench} /> {devMode ? "Dev Mode ON" : "Dev Mode"}
           </button>
         </div>
       </header>
@@ -275,7 +278,7 @@ function App() {
                 <p>Bot responses will include text-to-speech.</p>
                 {devMode && (
                   <div className="dev-mode-notice">
-                    🧪 Development metrics are enabled
+                    Development metrics are enabled
                   </div>
                 )}
               </div>
@@ -316,7 +319,7 @@ function App() {
                               className="copy-button"
                               onClick={() => navigator.clipboard.writeText(msg.content as string)}
                             >
-                              📋 Copy
+                              <FontAwesomeIcon icon={faCopy} /> Copy
                             </button>
                       </div>
                       )}
@@ -335,7 +338,7 @@ function App() {
                         />
                       ) : (
                         <div className="file-info">
-                          📄 <strong>{msg.content instanceof File ? msg.content.name : "Uploaded File"}</strong>
+                          <FontAwesomeIcon icon={faFileAlt} /> <strong>{msg.content instanceof File ? msg.content.name : "Uploaded File"}</strong>
                         </div>
                       )}
 
@@ -354,7 +357,7 @@ function App() {
                   )}
                   {msg.type === "audio" && (
                     <div className="audio-message">
-                      <span>🎤 {msg.content as string}</span>
+                      <span> <FontAwesomeIcon icon={faMicrophone} /> {msg.content as string}</span>
                       {listening && (
                         <div className="recording-indicator">● Recording...</div>
                       )}
@@ -389,11 +392,11 @@ function App() {
               disabled={loading} 
             />
             <button className="send-button" onClick={handleSendText} disabled={loading}>
-              📤 Send
+              <FontAwesomeIcon icon={faPaperPlane} /> Send
             </button>
 
             <label className="file-upload-button send-button">
-              📎 Upload
+              <FontAwesomeIcon icon={faFile} />  Upload
               <input
                 type="file"
                 onChange={handleFileUpload}
@@ -409,7 +412,7 @@ function App() {
               style={{ backgroundColor: listening ? "#ff4d4d" : "#00bfff" }}
               disabled={loading}
             >
-              {listening ? "⏹️ Stop" : "🎤 Voice"}
+              {listening ? <FontAwesomeIcon icon={faStop} /> : <FontAwesomeIcon icon={faMicrophone} />} {listening ? "Stop" : "Voice"}
             </button>
           </div>
         </div>

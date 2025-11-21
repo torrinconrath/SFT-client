@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { createWorker, PSM } from "tesseract.js";
 import * as pdfjsLib from "pdfjs-dist";
 import type { ChatMessage } from "../types/chat";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 // ✅ Worker import for bundlers like Vite/CRA
 import pdfWorker from "pdfjs-dist/build/pdf.worker?url";
@@ -110,7 +112,7 @@ const FileDecoder: React.FC<FileDecoderProps> = ({ message, onDecoded }) => {
   }, [message.timestamp, message.isProcessed]);
 
   if (loading) {
-    return <div className="decoded-message">🔄 Processing file...</div>;
+    return <div className="decoded-message"><FontAwesomeIcon icon={faSpinner} spin /> Processing file...</div>;
   }
 
   return decoded ? (
