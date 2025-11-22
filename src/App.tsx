@@ -9,6 +9,7 @@ import { useDevMetrics } from "./hooks/useDevMetrics";
 import ReactMarkdown from "react-markdown";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faWrench, faCopy, faPaperPlane, faFile, faFileAlt, faMicrophone, faStop } from '@fortawesome/free-solid-svg-icons';
+import chatbotIcon from "./assets/medical_chatbot_icon.png";
 import "./App.css";
 
 function App() {
@@ -245,7 +246,7 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="header-content">
-          <img src="assets/medical_chatbot_icon.png" alt="Chatbot Icon" className="chatbot-icon" />
+          <img src={chatbotIcon} alt="Chatbot Icon" className="chatbot-icon" />
           <h1>Jerry the Medical Assistant</h1>
           <button
             className="toggle-button"
