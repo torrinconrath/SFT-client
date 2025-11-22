@@ -250,7 +250,7 @@ function App() {
               // Update response message
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.timestamp === responseTimestamp
+                  msg.timestamp === responseTimestamp && msg.type === "bot"
                     ? { ...msg, content: fullResponseText }
                     : msg
                 )
@@ -285,7 +285,7 @@ function App() {
 
         // Replace the response with the error
         setMessages((prev) => 
-            prev.map(msg => msg.timestamp === responseTimestamp ? errorMessage : msg)
+            prev.map(msg => msg.timestamp === responseTimestamp && msg.type === "bot" ? errorMessage : msg)
         );
         return;
       }
@@ -305,7 +305,7 @@ function App() {
       
       // Replace response with error
       setMessages((prev) => 
-        prev.map(msg => msg.timestamp === responseTimestamp ? errorMessage : msg)
+        prev.map(msg => msg.timestamp === responseTimestamp && msg.type === "bot" ? errorMessage : msg)
       );
 
       // Complete metrics with error
