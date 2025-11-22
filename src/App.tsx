@@ -245,7 +245,8 @@ function App() {
     <div className="app-container">
       <header className="app-header">
         <div className="header-content">
-          <h1>Chatbot</h1>
+          <img src="assets/medical_chatbot_icon.png" alt="Chatbot Icon" className="chatbot-icon" />
+          <h1>Jerry the Medical Assistant</h1>
           <button
             className="toggle-button"
             onClick={clearMessages}

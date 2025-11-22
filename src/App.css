@@ -24,6 +24,12 @@ html, body, #root {
   align-items: center;
 }
 
+.chatbot-icon {
+  width: 100px;  
+  height: 100px; 
+  object-fit: contain;
+}
+
 .app-header {
   font-size: 1.5rem;
   color: #00bfff;
