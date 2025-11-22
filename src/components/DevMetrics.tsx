@@ -40,9 +40,12 @@ const DevMetrics: React.FC<DevMetricsProps> = ({ isEnabled, metrics, clearMetric
         <ul>
           {metrics.slice(0, 10).map((m, i) => (
             <li key={i}>
-              [{new Date(m.timestamp).toLocaleTimeString()}] <FontAwesomeIcon icon={faClock} /> {m.totalTime.toFixed(0)}ms |  
-              <FontAwesomeIcon icon={faCog} />{" "} {m.inferenceTime.toFixed(0)}ms |  
-              <FontAwesomeIcon icon={faWifi} /> {m.latency.toFixed(0)}ms
+              <div>
+                [{new Date(m.timestamp).toLocaleTimeString()}] 
+              </div>
+              <span><FontAwesomeIcon icon={faClock} /> {m.totalTime.toFixed(0)}ms  </span>   
+              <span><FontAwesomeIcon icon={faCog} />{" "} {m.inferenceTime.toFixed(0)}ms  </span>   
+              <span><FontAwesomeIcon icon={faWifi} /> {m.latency.toFixed(0)}ms  </span> 
             </li>
           ))}
         </ul>
