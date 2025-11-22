@@ -40,7 +40,10 @@ function App() {
   // Dev mode function
   const toggleDevMode = () => setDevMode((prev) => !prev);
 
-  // Standard send text
+
+  // ----------------------------------------------------------------
+  // Text Sending Logic
+  // ----------------------------------------------------------------
   const handleSendText = async () => {
     if (!input.trim()) return;
 
@@ -55,7 +58,9 @@ function App() {
     setInput("");
   };
 
-  // File Upload send
+  // ----------------------------------------------------------------
+  // File Sending Logic
+  // ----------------------------------------------------------------
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -92,7 +97,9 @@ function App() {
     }
   };
 
-  // Voice Upload send
+  // ----------------------------------------------------------------
+  // Voice Sending Logic
+  // ----------------------------------------------------------------
   const handleVoiceToggle = () => {
     if (!voiceRef.current) {
       voiceRef.current = createVoiceDecoder(
@@ -165,7 +172,9 @@ function App() {
     }
   };
 
-  // Main send message logic (text, file, or audio)
+  // ----------------------------------------------------------------
+  //  Send Message Function with Streaming
+  // ----------------------------------------------------------------
   const sendMessage = async ( content: string ) => {
     if (!content.trim()) return;
 
@@ -173,7 +182,7 @@ function App() {
     if (content.length > MAX_INPUT_CHARS) {
       const errorMessage: ChatMessage = {
         type: "bot",
-        content: `Your message is too long. Please reduce it to under ${MAX_INPUT_CHARS} characters.`,
+        content: `Your message is too long. Please reduce it to under ${MAX_INPUT_CHARS.toLocaleString()} characters.`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -182,13 +191,23 @@ function App() {
 
     // Start metrics collection (only if devMode is active)
     if (devMode) startMonitoring();
+    setLoading(true)
+
+    // Set response to empty
+    const responseTimestamp = new Date().toISOString();
+    const response: ChatMessage = {
+      type: "bot",
+      content:
+        "",
+      timestamp: responseTimestamp,
+    };
+    setMessages((prev) => [...prev, response]);
 
     try {
 
-      setLoading(true)
-
+      // Connect to streaming endpoint
       const res = await fetch(
-        `${BASE_URL}/chat`,
+        `${BASE_URL}/chat/stream`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,34 +215,85 @@ function App() {
         }
       );
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      if (!res.body) throw new Error("Response body is null");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      let buffer = "";
+      let fullResponseText = "";
+      let inferenceTime = 0;
+
+      // Reading loop
+      while (true){
+        const {done, value} = await reader.read();
+        if (done) break;
+
+        // Decode chunk and append it
+        buffer += decoder.decode(value, {stream: true});
+
+        // Process lines
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const data = JSON.parse(line);
+
+            // Update the content 
+            if (data.type === "content") {
+              fullResponseText += data.text;
+
+              // Update response message
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.timestamp === responseTimestamp
+                    ? { ...msg, content: fullResponseText }
+                    : msg
+                )
+              );
+            }
+
+            // Update the inference time
+            else if (data.type === "usage") {
+              inferenceTime = data.inference_time;
+            }
+
+            // Server Error
+            else if (data.type === "error") {
+               console.error("Stream error:", data.message);
+               fullResponseText += ` [Error: ${data.message}]`;
+            }
+
+          } catch (e) {
+            console.warn("JSON Parse Error", e);
+          }
+        }
       }
 
-      const data = await res.json();
-      const botMessage: ChatMessage = {
-        type: "bot",
-        content: data.response,
-        timestamp: new Date().toISOString(),
-      };
-
-      // In case the model hits a stop criteria and cannot give a good response
-      if (data.response.length < 4) {
+      // In case the model cannot give a good response
+      if (fullResponseText.trim().length < 4) {
         const errorMessage: ChatMessage = {
           type: "bot",
           content:
-            "Sorry, the provide text is unable to be processed. Please rephrase it and try again.",
+            "Sorry, the provided text is unable to be processed. Please rephrase it and try again.",
           timestamp: new Date().toISOString(),
         };
-        setMessages((prev) => [...prev, errorMessage]);
+
+        // Replace the response with the error
+        setMessages((prev) => 
+            prev.map(msg => msg.timestamp === responseTimestamp ? errorMessage : msg)
+        );
         return;
       }
 
-
-      setMessages((prev) => [...prev, botMessage]);
-
       // Complete metrics with inference time (if available)
-      if (devMode) completeMonitoring(data.response, data.inference_time);
+      if (devMode) completeMonitoring(fullResponseText, inferenceTime);
+
+
     } catch (err) {
       console.error("Error talking to backend:", err);
       const errorMessage: ChatMessage = {
@@ -232,7 +302,11 @@ function App() {
           "Sorry, I'm having trouble connecting right now. Please try again.",
         timestamp: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      
+      // Replace response with error
+      setMessages((prev) => 
+        prev.map(msg => msg.timestamp === responseTimestamp ? errorMessage : msg)
+      );
 
       // Complete metrics with error
       if (devMode) completeMonitoring("Error response", 0);
@@ -303,29 +377,44 @@ function App() {
                   {msg.type === "text" && <span>{msg.content as string}</span>}
                   {msg.type === "bot" && (
                     <div className="bot-message-container">
-                      <ReactMarkdown
-                        components={{
-                          strong: ({ node, ...props }) => <strong style={{ fontWeight: "bold" }} {...props} />,
-                          li: ({ node, ...props }) => <li style={{ marginLeft: "1.2em" }} {...props} />,
-                          ul: ({ node, ...props }) => <ul style={{ paddingLeft: "1.5em", marginTop: "0.5em" }} {...props} />,
-                          p: ({ node, ...props }) => <p style={{ marginBottom: "0.5em" }} {...props} />,
-                        }}
-                      >
-                        {msg.content as string}
-                      </ReactMarkdown>
 
-                      {msg.content && typeof msg.content === "string" && msg.content.trim() && (
-                         <div className="voice-output-buttons">
-                            <VoiceOutput text={msg.content as string} />
-                            <button
-                              className="copy-button"
-                              onClick={() => navigator.clipboard.writeText(msg.content as string)}
-                            >
-                              <FontAwesomeIcon icon={faCopy} /> Copy
-                            </button>
-                      </div>
+                      {/* Show loading animation if there is no content */}
+                      {(!msg.content || (typeof msg.content === 'string' && msg.content === '')) ? (
+                        <div className="loading-message">
+                          <div className="loading-dots">
+                            <span>.</span>
+                            <span>.</span>
+                            <span>.</span>
+                          </div>
+                          <p>Bot is typing...</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Else show content */}
+                          <ReactMarkdown
+                            components={{
+                              strong: ({ node, ...props }) => <strong style={{ fontWeight: "bold" }} {...props} />,
+                              li: ({ node, ...props }) => <li style={{ marginLeft: "1.2em" }} {...props} />,
+                              ul: ({ node, ...props }) => <ul style={{ paddingLeft: "1.5em", marginTop: "0.5em" }} {...props} />,
+                              p: ({ node, ...props }) => <p style={{ marginBottom: "0.5em" }} {...props} />,
+                            }}
+                          >
+                            {msg.content as string}
+                          </ReactMarkdown>
+
+                          {msg.content && typeof msg.content === "string" && msg.content.trim() && (
+                            <div className="voice-output-buttons">
+                                <VoiceOutput text={msg.content as string} />
+                                <button
+                                  className="copy-button"
+                                  onClick={() => navigator.clipboard.writeText(msg.content as string)}
+                                >
+                                  <FontAwesomeIcon icon={faCopy} /> Copy
+                                </button>
+                            </div>
+                          )}
+                        </>
                       )}
-
                     </div>
                   )}
                   {msg.type === "file" && (
@@ -368,18 +457,6 @@ function App() {
                 </div>
               </div>
             ))}
-
-            {/* Loading animation always at the bottom if loading */}
-            {loading && (
-              <div className="chat-message bot-message loading-message">
-                <div className="loading-dots">
-                  <span>.</span>
-                  <span>.</span>
-                  <span>.</span>
-                </div>
-                <p>Bot is typing...</p>
-              </div>
-            )}
           </div>
 
           <div className="input-area">
