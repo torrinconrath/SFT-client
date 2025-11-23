@@ -474,21 +474,22 @@ function App() {
               <FontAwesomeIcon icon={faPaperPlane} /> Send
             </button>
 
-            <label className="file-upload-button send-button">
-              <FontAwesomeIcon icon={faFile} />  Upload
-              <input
-                type="file"
-                onChange={handleFileUpload}
-                accept=".pdf,.png,.jpg,.jpeg,.gif"
-                hidden
-                disabled={loading}
-              />
-            </label>
+            <button className="send-button file-upload-button">
+              <label>
+                <FontAwesomeIcon icon={faFile} />  Upload
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.png,.jpg,.jpeg,.gif"
+                  hidden
+                  disabled={loading}
+                />
+              </label>
+            </button>
 
             <button
-              className="voice-button send-button"
+              className={`voice-button send-button ${listening ? "listening" : ""}`}
               onClick={handleVoiceToggle}
-              style={{ backgroundColor: listening ? "#ff4d4d" : "#00bfff" }}
               disabled={loading}
             >
               {listening ? <FontAwesomeIcon icon={faStop} /> : <FontAwesomeIcon icon={faMicrophone} />} {listening ? "Stop" : "Voice"}
